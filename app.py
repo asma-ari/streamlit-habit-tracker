@@ -2,7 +2,7 @@
 app.py
 แอป Daily Habit Tracker
 - ปฏิทิน FullCalendar
-- ใต้ปฏิทินมีแถบกิจกรรมที่ต้องทำวันนี้ ใช้ Checkbox ติ๊กถูกแล้วหายไปขึ้นบนปฏิทินแทน
+- ใต้ปฏิทินมีแถบกิจกรรมขนาดใหญ่ สีชมพูอ่อนพาสเทลน่ารัก มี Checkbox ติ๊กทำกิจกรรม
 - ปุ่มแก้ไขและลบในกิจกรรมวนซ้ำอยู่ชิดติดกัน
 """
 
@@ -22,11 +22,25 @@ st.markdown(
     """
     <style>
     .stApp { background: linear-gradient(180deg, #fff5f7 0%, #f3f0ff 100%); }
-    .todo-card {
-        background: white; padding: 8px 16px; border-radius: 12px;
-        margin-bottom: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-        border-left: 5px solid #ff9eb5;
+    
+    /* สไตล์แถบกิจกรรมใหญ่ สีชมพูอ่อนพาสเทล */
+    .todo-card-wrapper {
+        background-color: #fff0f3;
+        border: 2px solid #ffccd5;
+        border-left: 8px solid #ff85a1;
+        border-radius: 18px;
+        padding: 16px 20px;
+        margin-bottom: 14px;
+        box-shadow: 0 4px 12px rgba(255, 182, 193, 0.25);
     }
+    
+    /* ขยายขนาดตัวหนังสือและ Checkbox ให้ใหญ่กดง่าย */
+    .todo-card-wrapper .stCheckbox label p {
+        font-size: 1.15rem !important;
+        font-weight: 600 !important;
+        color: #5c3d52 !important;
+    }
+
     h1, h2, h3 { color: #6b4c8a; }
     </style>
     """,
@@ -194,11 +208,11 @@ with tab_calendar:
         events=events,
         options=calendar_options,
         callbacks=["dateClick", "select"],
-        key="waan_fullcalendar_v6"
+        key="waan_fullcalendar_v7"
     )
 
     # ---------------------------------------------------------
-    # 📌 แถบกิจกรรมที่ต้องทำวันนี้ (ใช้ CHECKBOX ติ๊กถูกในแถบเลย)
+    # 📌 แถบกิจกรรมใหญ่ สีชมพูอ่อนพาสเทล (อยู่ใต้ปฏิทิน)
     # ---------------------------------------------------------
     st.divider()
     st.subheader(f"📌 กิจกรรมที่ต้องทำวันนี้ ({thai_weekday(today)}ที่ {today.strftime('%d/%m/%Y')})")
@@ -213,19 +227,18 @@ with tab_calendar:
         st.info("🎉 วันนี้ไม่มีกิจกรรมค้างแล้ว! พักผ่อนได้เลย 🛋️")
     else:
         for h in due_today_not_done:
-            # ใช้ st.checkbox ซ้อนในคอนเทนเนอร์การ์ด
-            with st.container():
-                st.markdown("<div class='todo-card'>", unsafe_allow_html=True)
-                is_checked = st.checkbox(
-                    f"**{h['emoji']} {h['name']}** *(วนซ้ำทุก {h['interval_days']} วัน)*",
-                    key=f"chk_todo_{h['id']}"
-                )
-                st.markdown("</div>", unsafe_allow_html=True)
-                
-                # ถ้าถูกติ๊ก -> บันทึกและรีโหลดเพื่อย้ายไปแสดงบนปฏิทิน
-                if is_checked:
-                    db.add_log(h["id"], today, note=None, completed=True)
-                    st.rerun()
+            # ครอบด้วยกล่องสีชมพูพาสเทลขนาดใหญ่
+            st.markdown("<div class='todo-card-wrapper'>", unsafe_allow_html=True)
+            is_checked = st.checkbox(
+                f"{h['emoji']} **{h['name']}**  *(ทำทุกๆ {h['interval_days']} วัน)*",
+                key=f"chk_todo_{h['id']}"
+            )
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+            # เมื่อติ๊กถูก ให้บันทึกแล้วรีโหลดเพื่อย้ายไปแสดงบนปฏิทิน
+            if is_checked:
+                db.add_log(h["id"], today, note=None, completed=True)
+                st.rerun()
 
     # ตรวจจับคลิกวันที่
     clicked_date_str = None
