@@ -1,6 +1,6 @@
 """
 app.py
-แอป Daily Habit Tracker (ระบบ Multi-user / Login)
+แอป Daily Habit Tracker (ระบบ Multi-user / Login แบบ Pop-up Dialog)
 """
 
 from datetime import date, datetime, timedelta
@@ -49,52 +49,85 @@ st.markdown(
 )
 
 # -------------------------------------------------------------
-# 🔐 หน้าเข้าสู่ระบบ / สมัครสมาชิก (แสดงเมื่อยังไม่ Login)
+# 🪟 POPUP DIALOGS สำหรับ Login & Sign Up
+# -------------------------------------------------------------
+@st.dialog("🔑 เข้าสู่ระบบ")
+def open_login_dialog():
+    with st.form("login_form"):
+        username = st.text_input("ชื่อผู้ใช้ (Username)").strip()
+        password = st.text_input("รหัสผ่าน (Password)", type="password").strip()
+        btn_login = st.form_submit_button("เข้าสู่ระบบ 🚀", use_container_width=True)
+        
+        if btn_login:
+            if username and password:
+                user = db.login_user(username, password)
+                if user:
+                    st.session_state.user = user
+                    st.success(f"ยินดีต้อนรับกลับมา {username}! 🎉")
+                    st.rerun()
+                else:
+                    st.error("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง")
+            else:
+                st.warning("กรุณากรอกข้อมูลให้ครบถ้วน")
+
+@st.dialog("📝 สมัครสมาชิก")
+def open_signup_dialog():
+    st.caption("🔒 กำหนดเพียงชื่อผู้ใช้และรหัสผ่าน เพื่อแยกพื้นที่บันทึกส่วนตัวของคุณเท่านั้น")
+    with st.form("signup_form"):
+        new_username = st.text_input("ตั้งชื่อผู้ใช้ (Username)").strip()
+        new_password = st.text_input("ตั้งรหัสผ่าน (Password)", type="password").strip()
+        confirm_password = st.text_input("ยืนยันรหัสผ่านอีกครั้ง", type="password").strip()
+        btn_signup = st.form_submit_button("สร้างบัญชีใหม่ ✨", use_container_width=True)
+        
+        if btn_signup:
+            if new_username and new_password:
+                if new_password != confirm_password:
+                    st.error("รหัสผ่านทั้งสองช่องไม่ตรงกัน")
+                else:
+                    success, msg = db.register_user(new_username, new_password)
+                    if success:
+                        st.success("สมัครสมาชิกสำเร็จแล้ว! สามารถกดเข้าสู่ระบบได้เลย")
+                    else:
+                        st.error(msg)
+            else:
+                st.warning("กรุณากรอกข้อมูลให้ครบถ้วน")
+
+
+# -------------------------------------------------------------
+# 🔐 หน้าแรกเลือกเข้าสู่ระบบ / สมัครสมาชิก (แสดงเมื่อยังไม่ Login)
 # -------------------------------------------------------------
 if not st.session_state.user:
+    st.markdown("<br>", unsafe_allow_html=True)
     st.title("🌸 Daily Habit Tracker")
-    st.caption("ปฏิทินบันทึกประจำวัน + กิจกรรมวนซ้ำ & นัดหมายสำคัญ ✨")
+    st.caption("พื้นที่บันทึกไดอารี่ และติดตามกิจกรรมประจำวันของคุณ ✨")
     
-    tab_login, tab_signup = st.tabs(["🔑 เข้าสู่ระบบ", "📝 สมัครสมาชิก"])
+    st.divider()
     
-    with tab_login:
-        with st.form("login_form"):
-            username = st.text_input("ชื่อผู้ใช้ (Username)").strip()
-            password = st.text_input("รหัสผ่าน (Password)", type="password").strip()
-            btn_login = st.form_submit_button("เข้าสู่ระบบ 🚀", use_container_width=True)
+    # การ์ดอธิบาย
+    st.markdown(
+        """
+        ### 👋 ยินดีต้อนรับสู่ Daily Habit Tracker!
+        
+        เพื่อให้ข้อมูลปฏิทิน กิจกรรม และไดอารี่ของคุณเป็น**ส่วนตัว 100%**  
+        ระบบของเราจึงแยกพื้นที่บันทึกของแต่ละคนออกจากกันอย่างชัดเจนครับ
+        
+        > 💡 **การสมัครสมาชิกทำได้ง่ายมาก!**  
+        > ใช้เพียงการสร้าง **ชื่อผู้ใช้ (Username)** และ **รหัสผ่าน (Password)** เท่านั้น  
+        > ไม่ต้องใช้อีเมล ไม่ต้องกรอกข้อมูลส่วนตัวใดๆ เพิ่มเติมเลยครับ 🔒✨
+        """
+    )
+    
+    st.divider()
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🔑 เข้าสู่ระบบ", use_container_width=True, type="primary"):
+            open_login_dialog()
             
-            if btn_login:
-                if username and password:
-                    user = db.login_user(username, password)
-                    if user:
-                        st.session_state.user = user
-                        st.success(f"ยินดีต้อนรับกลับมา {username}! 🎉")
-                        st.rerun()
-                    else:
-                        st.error("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง")
-                else:
-                    st.warning("กรุณากรอกข้อมูลให้ครบถ้วน")
-                    
-    with tab_signup:
-        with st.form("signup_form"):
-            new_username = st.text_input("ตั้งชื่อผู้ใช้ (Username)").strip()
-            new_password = st.text_input("ตั้งรหัสผ่าน (Password)", type="password").strip()
-            confirm_password = st.text_input("ยืนยันรหัสผ่านอีกครั้ง", type="password").strip()
-            btn_signup = st.form_submit_button("สร้างบัญชีใหม่ ✨", use_container_width=True)
+    with col2:
+        if st.button("📝 สมัครสมาชิก", use_container_width=True):
+            open_signup_dialog()
             
-            if btn_signup:
-                if new_username and new_password:
-                    if new_password != confirm_password:
-                        st.error("รหัสผ่านทั้งสองช่องไม่ตรงกัน")
-                    else:
-                        success, msg = db.register_user(new_username, new_password)
-                        if success:
-                            st.success("สมัครสมาชิกสำเร็จแล้ว! สามารถกดเข้าสู่ระบบได้เลย")
-                        else:
-                            st.error(msg)
-                else:
-                    st.warning("กรุณากรอกข้อมูลให้ครบถ้วน")
-    
     st.stop()  # หยุดการทำงานไว้แค่นี้หากยังไม่ได้ล็อกอิน
 
 # -------------------------------------------------------------
@@ -305,7 +338,7 @@ with tab_calendar:
         events=events,
         options=calendar_options,
         callbacks=["dateClick", "select"],
-        key="waan_fullcalendar_v16"
+        key="waan_fullcalendar_v17"
     )
 
     st.divider()
