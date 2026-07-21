@@ -2,7 +2,7 @@
 
 > **"สร้างนิสัยที่ดีและบันทึกความทรงจำในทุกๆ วัน ด้วยแอปปฏิทินพาสเทลสุดละมุน"**
 
-**Daily Habit Tracker** คือเว็บแอปพลิเคชันที่ช่วยให้คุณติดตามกิจกรรมประจำวัน (Habit Tracker) พร้อมพื้นที่บันทึกไดอารี่ประจำวัน ตกแต่งด้วยธีมสีพาสเทลมินิมอล ใช้งานง่าย ชัดเจน และสบายตา
+👉 **[คลิกที่นี่เพื่อทดลองใช้งานแอปพลิเคชัน (Live Demo)](https://waan-waan-kgjg6irz6mbz2psyxfujdr.streamlit.app/)** 🚀
 
 ---
 
@@ -28,7 +28,7 @@
 
 * **Frontend & Web Framework:** [Streamlit](https://streamlit.io/)
 * **Calendar Component:** [streamlit-calendar](https://github.com/u/streamlit-calendar) (FullCalendar integration)
-* **Database:** SQLite3 (จัดเก็บข้อมูล habits และ logs แบบน้ำหนักเบา)
+* **Database:** SQLite3 (จัดเก็บข้อมูล habits และ logs)
 * **Deployment:** Streamlit Cloud
 
 ---
