@@ -135,3 +135,12 @@ def delete_log(log_id: int):
     conn.execute("DELETE FROM logs WHERE id = ?", (log_id,))
     conn.commit()
     conn.close()
+
+def update_habit(habit_id: int, name: str, emoji: str, interval_days: int, start_date: date):
+    conn = get_connection()
+    conn.execute(
+        "UPDATE habits SET name = ?, emoji = ?, interval_days = ?, start_date = ? WHERE id = ?",
+        (name, emoji, interval_days, start_date.isoformat(), habit_id),
+    )
+    conn.commit()
+    conn.close()
