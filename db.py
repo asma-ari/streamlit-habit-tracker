@@ -126,3 +126,4 @@ def delete_log(log_id: int):
     conn.execute("DELETE FROM logs WHERE id = ?", (log_id,))
     conn.commit()
     conn.close()
+    
