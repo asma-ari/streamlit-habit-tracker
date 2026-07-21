@@ -1,6 +1,6 @@
 """
 app.py
-แอป Daily Habit Tracker (แก้ปัญหากรอบแดง Autofill และจัดการพฤติกรรม Dialog สมบูรณ์แบบ)
+แอป Daily Habit Tracker (ปิดป๊อปอัปเฉพาะตอนสมัครหรือเข้าสู่ระบบสำเร็จเท่านั้น)
 """
 
 from datetime import date, datetime, timedelta
@@ -21,27 +21,17 @@ if "user" not in st.session_state:
 if "editing_habit_id" not in st.session_state:
     st.session_state.editing_habit_id = None
 
-# ---------- Custom Styling (เคลียร์กรอบแดง Autofill ของเบราว์เซอร์) ----------
+# ---------- Custom Styling (เคลียร์กรอบแดงกวนใจ) ----------
 st.markdown(
     """
     <style>
     .stApp { background: linear-gradient(180deg, #fff5f7 0%, #f3f0ff 100%); }
     
-    /* บังคับไม่ให้ช่องกรอกเปลี่ยนเป็นสีแดงเวลาเบราว์เซอร์ Autofill หรือมี Error */
-    input:-webkit-autofill,
-    input:-webkit-autofill:hover, 
-    input:-webkit-autofill:focus, 
-    input:-webkit-autofill:active {
-        -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
-        -webkit-text-fill-color: #343a40 !important;
-        border-color: #ced4da !important;
-    }
-
-    .stTextInput input, .stTextArea textarea, div[data-baseweb="select"] > div {
+    input, textarea, select {
         border-color: #ced4da !important;
         box-shadow: none !important;
     }
-    .stTextInput input:focus, .stTextArea textarea:focus {
+    input:focus, textarea:focus {
         border-color: #b19cd9 !important;
         box-shadow: 0 0 0 2px rgba(177, 156, 217, 0.2) !important;
     }
@@ -68,7 +58,7 @@ st.markdown(
 )
 
 # -------------------------------------------------------------
-# 🪟 POPUP DIALOGS สำหรับ Login & Sign Up (ไม่บังคับค้าง ปิดกากบาทได้ทันที)
+# 🪟 POPUP DIALOGS สำหรับ Login & Sign Up
 # -------------------------------------------------------------
 @st.dialog("🔑 เข้าสู่ระบบ")
 def open_login_dialog():
@@ -82,11 +72,11 @@ def open_login_dialog():
                 user = db.login_user(username, password)
                 if user:
                     st.session_state.user = user
-                    st.rerun()
+                    st.rerun() # ปิดป๊อปอัปและเข้าสู่ระบบทันทีเมื่อรหัสถูกต้อง
                 else:
-                    st.error("❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง")
+                    st.toast("❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง!", icon="🚨") # ผิดจะเตือนเฉยๆ ป๊อปอัปไม่ปิด
             else:
-                st.warning("⚠️ กรุณากรอกข้อมูลให้ครบถ้วน")
+                st.toast("⚠️ กรุณากรอกข้อมูลให้ครบถ้วน", icon="⚠️")
 
 @st.dialog("📝 สมัครสมาชิก")
 def open_signup_dialog():
@@ -101,15 +91,17 @@ def open_signup_dialog():
         if btn_signup:
             if new_username and new_password:
                 if new_password != confirm_password:
-                    st.error("❌ รหัสผ่านทั้งสองช่องไม่ตรงกัน")
+                    st.toast("❌ รหัสผ่านทั้งสองช่องไม่ตรงกัน!", icon="🚨") # ผิดไม่ปิดป๊อปอัป
                 else:
                     success, msg = db.register_user(new_username, new_password)
                     if success:
-                        st.success("🎉 สมัครสมาชิกสำเร็จ! สามารถกดกากบาทปิด แล้วกดปุ่มเข้าสู่ระบบได้เลย")
+                        st.toast("🎉 สมัครสมาชิกสำเร็จ!", icon="✨")
+                        st.session_state.user = db.login_user(new_username, new_password)
+                        st.rerun() # สำเร็จทำการสมัคร + ล็อกอินเข้าใช้งานและปิดป๊อปอัปทันที
                     else:
-                        st.error(f"❌ {msg}")
+                        st.toast(f"❌ {msg}", icon="🚨") # ผิดไม่ปิดป๊อปอัป
             else:
-                st.warning("⚠️ กรุณากรอกข้อมูลให้ครบถ้วน")
+                st.toast("⚠️ กรุณากรอกข้อมูลให้ครบถ้วน", icon="⚠️")
 
 
 # -------------------------------------------------------------
@@ -353,7 +345,7 @@ with tab_calendar:
         events=events,
         options=calendar_options,
         callbacks=["dateClick", "select"],
-        key="waan_fullcalendar_v20"
+        key="waan_fullcalendar_v22"
     )
 
     st.divider()
