@@ -2,7 +2,7 @@
 app.py
 แอป Waan-Waan Habit Tracker
 - ใช้ FullCalendar สวยงาม
-- ล็อก timeZone เป็น "UTC" เพื่อแก้ปัญหาวันที่เพี้ยน/ย้อนหลัง 1 วัน อย่างเด็ดขาด
+- แก้ไขการคลิกวันที่ให้ทำงาน 100% ด้วย callback 'select' และ 'dateClick'
 - คลิกวันที่แล้วเด้ง Popup Dialog กลางจอเพื่อบันทึก/ลบ
 """
 
@@ -151,29 +151,39 @@ with tab_calendar:
         },
         "initialView": "dayGridMonth",
         "selectable": True,
-        "timeZone": "UTC",  # <--- ตั้งเป็น UTC เพื่อป้องกันเบราว์เซอร์เลื่อนวัน
+        "selectMirror": True,
+        "timeZone": "UTC",
     }
 
-    # แสดงปฏิทิน
-    cal_res = calendar(events=events, options=calendar_options, callbacks=["dateClick"], key="waan_fullcalendar_utc")
+    # แสดงปฏิทิน (เพิ่ม callbacks ให้ครอบคลุมทั้ง dateClick และ select)
+    cal_res = calendar(
+        events=events,
+        options=calendar_options,
+        callbacks=["dateClick", "select"],
+        key="waan_fullcalendar_v3"
+    )
 
-    # ================= ดึงค่าวันที่จาก dateStr โดยตรง =================
-    if cal_res and "dateClick" in cal_res:
-        click_info = cal_res["dateClick"]
-        
-        # ดึง dateStr ตรงๆ (เช่น "2026-07-21")
-        date_str = click_info.get("dateStr", "")
-        if "T" in date_str:
-            date_str = date_str.split("T")[0]
-        elif " " in date_str:
-            date_str = date_str.split(" ")[0]
+    # ================= ตรวจจับการคลิกวันที่ =================
+    clicked_date_str = None
 
-        if date_str:
-            try:
-                selected_date = date.fromisoformat(date_str)
-                open_entry_dialog(selected_date)
-            except ValueError:
-                pass
+    if cal_res:
+        # กรณีใช้ select (คลิกเลือกวัน)
+        if "select" in cal_res:
+            select_info = cal_res["select"]
+            clicked_date_str = select_info.get("startStr") or select_info.get("start")
+        # กรณีใช้ dateClick
+        elif "dateClick" in cal_res:
+            click_info = cal_res["dateClick"]
+            clicked_date_str = click_info.get("dateStr") or click_info.get("date")
+
+    if clicked_date_str:
+        # ตัดเวลาออก เอาเฉพาะ YYYY-MM-DD
+        clean_str = str(clicked_date_str).split("T")[0].split(" ")[0]
+        try:
+            selected_date = date.fromisoformat(clean_str)
+            open_entry_dialog(selected_date)
+        except ValueError:
+            pass
 
 
 # ================= TAB 2: กิจกรรมวนซ้ำ =================
