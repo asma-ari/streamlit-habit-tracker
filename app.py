@@ -2,8 +2,8 @@
 app.py
 แอป Daily Habit Tracker
 - ปฏิทิน FullCalendar
-- ใต้ปฏิทินมีแถบสี่เหลี่ยมผืนผ้าสีเทาอ่อน โดยมี Checkbox + ข้อความอยู่ข้างในแถบอย่างถูกต้อง
-- ปุ่มแก้ไขและลบในกิจกรรมวนซ้ำอยู่ชิดติดกัน
+- รองรับการตั้งค่ากิจกรรมทั้งแบบ "ทำทุก N วัน" และ "ทำเฉพาะวันในสัปดาห์" (เช่น ไปมหาลัยทุกวันจันทร์)
+- แถบกิจกรรมรูปทรงกล่องสีเทาอ่อน มี Checkbox อยู่ด้านใน
 """
 
 from datetime import date, datetime, timedelta
@@ -33,7 +33,6 @@ st.markdown(
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
     }
     
-    /* ขนาดข้อความ Checkbox ในแถบ */
     div[data-testid="stVerticalBlockBorderWrapper"] .stCheckbox label p {
         font-size: 1.15rem !important;
         font-weight: 600 !important;
@@ -47,7 +46,7 @@ st.markdown(
 )
 
 st.title("🌸 Daily Habit Tracker")
-st.caption("ปฏิทินบันทึกประจำวัน + กิจกรรมวนซ้ำทุก N วัน ✨")
+st.caption("ปฏิทินบันทึกประจำวัน + กิจกรรมวนซ้ำ ✨")
 
 today = date.today()
 
@@ -61,7 +60,6 @@ def open_entry_dialog(selected_d: date):
     habits = db.get_habits()
     due_on_selected = [h for h in habits if is_due(date.fromisoformat(h["start_date"]), h["interval_days"], selected_d)]
 
-    # 1. เช็ค/ติ๊กกิจกรรมที่ต้องทำในวันนั้น
     if due_on_selected:
         st.markdown("✨ **กิจกรรมในวันนี้:**")
         for h in due_on_selected:
@@ -79,7 +77,6 @@ def open_entry_dialog(selected_d: date):
                     st.caption("เรียบร้อย")
         st.divider()
 
-    # 2. ฟอร์มเขียนบันทึก/ไดอารี่
     st.markdown("✍️ **พิมพ์เรื่องราว/ไดอารี่วันนี้:**")
     note_input = st.text_area("วันนี้มีอะไรเกิดขึ้นบ้าง เล่าให้ฟังหน่อย...", height=100, key=f"note_area_{selected_d}")
     
@@ -91,7 +88,6 @@ def open_entry_dialog(selected_d: date):
         else:
             st.warning("กรุณาพิมพ์ข้อความก่อนบันทึกนะ")
 
-    # 3. ประวัติย้อนหลัง + ปุ่มลบ
     st.divider()
     st.markdown("📖 **บันทึกย้อนหลังของวันนี้:**")
     logs_on_selected = db.get_logs_for_date(selected_d)
@@ -144,7 +140,7 @@ def open_edit_habit_dialog(habit):
 # -------------------------------------------------------------
 # 📌 MAIN TABS
 # -------------------------------------------------------------
-tab_calendar, tab_habits = st.tabs(["📅 ปฏิทิน", "🔁 กิจกรรมวนซ้ำ"])
+tab_calendar, tab_habits = st.tabs(["📅 ปฏิทิน", "🔁 ตั้งค่ากิจกรรม"])
 habits = db.get_habits()
 
 # ================= TAB 1: ปฏิทิน =================
@@ -207,7 +203,7 @@ with tab_calendar:
         events=events,
         options=calendar_options,
         callbacks=["dateClick", "select"],
-        key="waan_fullcalendar_v11"
+        key="waan_fullcalendar_v12"
     )
 
     # ---------------------------------------------------------
@@ -226,10 +222,10 @@ with tab_calendar:
         st.info("🎉 วันนี้ไม่มีกิจกรรมค้างแล้ว! พักผ่อนได้เลย 🛋️")
     else:
         for h in due_today_not_done:
-            # ใช้ st.container(border=True) เพื่อดึง Checkbox เข้าไปอยู่ในกล่องสี่เหลี่ยมสีเทา
             with st.container(border=True):
+                freq_label = f"ทำทุกวัน{thai_weekday(date.fromisoformat(h['start_date']))}" if h['interval_days'] == 7 else f"ทำทุกๆ {h['interval_days']} วัน"
                 is_checked = st.checkbox(
-                    f"{h['emoji']} **{h['name']}** *(ทำทุกๆ {h['interval_days']} วัน)*",
+                    f"{h['emoji']} **{h['name']}** *({freq_label})*",
                     key=f"chk_todo_{h['id']}"
                 )
                 if is_checked:
@@ -255,24 +251,50 @@ with tab_calendar:
             pass
 
 
-# ================= TAB 2: กิจกรรมวนซ้ำ =================
+# ================= TAB 2: ตั้งค่ากิจกรรม =================
 with tab_habits:
-    st.subheader("🔁 ตั้งค่ากิจกรรมวนซ้ำ (ทุก N วัน)")
+    st.subheader("🔁 ตั้งค่ากิจกรรมวนซ้ำ / กิจกรรมประจำวัน")
+    
+    # สลับประเภทรูปแบบกิจกรรม
+    repeat_type = st.radio(
+        "รูปแบบกิจกรรม:",
+        ["ทำตามวันในสัปดาห์ (เช่น ทุกวันจันทร์)", "ทำทุกๆ N วัน (เช่น ทุกๆ 2 วัน)"],
+        horizontal=True
+    )
+    
     with st.form("add_habit_form", clear_on_submit=True):
         c1, c2 = st.columns([1, 3])
-        emoji = c1.text_input("อีโมจิ", value="✨", max_chars=2)
-        name = c2.text_input("ชื่อกิจกรรม เช่น สระผม, ซักผ้า, รดน้ำต้นไม้")
-        c3, c4 = st.columns(2)
-        interval_days = c3.number_input("ทำทุกกี่วัน", min_value=1, max_value=365, value=2)
-        start_date_input = c4.date_input("เริ่มนับจากวันที่", value=today)
+        emoji = c1.text_input("อีโมจิ", value="🎓" if "วันในสัปดาห์" in repeat_type else "✨", max_chars=2)
+        name = c2.text_input("ชื่อกิจกรรม เช่น ไปมหาลัย, สระผม, รดน้ำต้นไม้")
+        
+        if "วันในสัปดาห์" in repeat_type:
+            weekday_choice = st.selectbox(
+                "เลือกวันในสัปดาห์ที่ต้องทำ:",
+                ["วันจันทร์", "วันอังคาร", "วันพุธ", "วันพฤหัสบดี", "วันศุกร์", "วันเสาร์", "วันอาทิตย์"]
+            )
+            # หา offset วันถัดไปที่ตรงกับวันที่เลือก
+            weekday_map = {"วันจันทร์": 0, "วันอังคาร": 1, "วันพุธ": 2, "วันพฤหัสบดี": 3, "วันศุกร์": 4, "วันเสาร์": 5, "วันอาทิตย์": 6}
+            target_weekday = weekday_map[weekday_choice]
+            
+            # คำนวณหา วันที่ ของวันในสัปดาห์นั้นถัดไป
+            days_ahead = target_weekday - today.weekday()
+            if days_ahead < 0:
+                days_ahead += 7
+            start_date_input = today + timedelta(days=days_ahead)
+            interval_days = 7  # 7 วันวนซ้ำ 1 ครั้ง
+        else:
+            c3, c4 = st.columns(2)
+            interval_days = c3.number_input("ทำทุกกี่วัน", min_value=1, max_value=365, value=2)
+            start_date_input = c4.date_input("เริ่มนับจากวันที่", value=today)
+
         submitted = st.form_submit_button("บันทึกกิจกรรม 💾")
         if submitted:
             if name.strip():
                 db.add_habit(name.strip(), emoji or "✨", int(interval_days), start_date_input)
-                st.success(f"เพิ่ม '{name}' เรียบร้อย!")
+                st.success(f"เพิ่ม '{name}' เรียบร้อยแล้ว!")
                 st.rerun()
             else:
-                st.warning("ใส่ชื่อกิจกรรมด้วยนะ")
+                st.warning("กรุณาใส่ชื่อกิจกรรมด้วยนะ")
 
     st.divider()
     st.subheader("📋 รายการกิจกรรมทั้งหมด")
@@ -283,10 +305,12 @@ with tab_habits:
         upcoming = upcoming_due_dates(start_d, h["interval_days"], today, count=4)
         upcoming_str = ", ".join(f"{thai_weekday(d)[:2]} {d.strftime('%d/%m')}" for d in upcoming)
         
+        freq_text = f"ทำทุกวัน{thai_weekday(start_d)}" if h["interval_days"] == 7 else f"ทุก {h['interval_days']} วัน"
+        
         col_info, col_btns = st.columns([3, 2])
         with col_info:
             st.markdown(
-                f"**{h['emoji']} {h['name']}** — ทุก {h['interval_days']} วัน  \n"
+                f"**{h['emoji']} {h['name']}** — {freq_text}  \n"
                 f"<small style='color: gray;'>📆 กำหนดถัดไป: {upcoming_str}</small>",
                 unsafe_allow_html=True
             )
