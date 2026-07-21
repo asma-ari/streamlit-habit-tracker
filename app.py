@@ -1,6 +1,6 @@
 """
 app.py
-แอป Daily Habit Tracker (ปิดป๊อปอัปเฉพาะตอนสมัครหรือเข้าสู่ระบบสำเร็จเท่านั้น)
+แอป Daily Habit Tracker (เวอร์ชันมาตรฐาน คลีน โค้ด โหลดเร็ว)
 """
 
 from datetime import date, datetime, timedelta
@@ -21,53 +21,6 @@ if "user" not in st.session_state:
 if "editing_habit_id" not in st.session_state:
     st.session_state.editing_habit_id = None
 
-# ---------- Custom Styling (เคลียร์กรอบแดง/ขอบส้มเวลาคลิกทั้งหมด) ----------
-st.markdown(
-    """
-    <style>
-    .stApp { background: linear-gradient(180deg, #fff5f7 0%, #f3f0ff 100%); }
-    
-    /* บังคับลบกรอบสีแดง/ส้ม และเงาเดิมของเบราว์เซอร์ออกทั้งหมด แล้วเปลี่ยนเป็นสีม่วงพาสเทล */
-    input:focus, textarea:focus, select:focus, 
-    input:active, textarea:active, select:active {
-        border-color: #b19cd9 !important;
-        box-shadow: 0 0 0 2px rgba(177, 156, 217, 0.3) !important;
-        outline: none !important;
-    }
-
-    /* ช่องกรอกข้อมูลปกติ */
-    input, textarea, select {
-        border: 1px solid #ced4da !important;
-        box-shadow: none !important;
-    }
-
-    /* ป้องกัน Streamlit ใส่กรอบแดงแจ้งเตือนเวลาช่องว่าง */
-    .stTextInput input:focus, .stTextArea textarea:focus {
-        border-color: #b19cd9 !important;
-        box-shadow: 0 0 0 2px rgba(177, 156, 217, 0.3) !important;
-    }
-
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        background-color: #f1f3f5 !important;
-        border: 1.5px solid #e9ecef !important;
-        border-radius: 16px !important;
-        padding: 10px 18px !important;
-        margin-bottom: 12px !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
-    }
-    
-    div[data-testid="stVerticalBlockBorderWrapper"] .stCheckbox label p {
-        font-size: 1.15rem !important;
-        font-weight: 600 !important;
-        color: #343a40 !important;
-    }
-
-    h1, h2, h3 { color: #6b4c8a; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
 # -------------------------------------------------------------
 # 🪟 POPUP DIALOGS สำหรับ Login & Sign Up
 # -------------------------------------------------------------
@@ -83,9 +36,9 @@ def open_login_dialog():
                 user = db.login_user(username, password)
                 if user:
                     st.session_state.user = user
-                    st.rerun() # ปิดป๊อปอัปและเข้าสู่ระบบทันทีเมื่อรหัสถูกต้อง
+                    st.rerun()
                 else:
-                    st.toast("❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง!", icon="🚨") # ผิดจะเตือนเฉยๆ ป๊อปอัปไม่ปิด
+                    st.toast("❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง!", icon="🚨")
             else:
                 st.toast("⚠️ กรุณากรอกข้อมูลให้ครบถ้วน", icon="⚠️")
 
@@ -102,15 +55,15 @@ def open_signup_dialog():
         if btn_signup:
             if new_username and new_password:
                 if new_password != confirm_password:
-                    st.toast("❌ รหัสผ่านทั้งสองช่องไม่ตรงกัน!", icon="🚨") # ผิดไม่ปิดป๊อปอัป
+                    st.toast("❌ รหัสผ่านทั้งสองช่องไม่ตรงกัน!", icon="🚨")
                 else:
                     success, msg = db.register_user(new_username, new_password)
                     if success:
                         st.toast("🎉 สมัครสมาชิกสำเร็จ!", icon="✨")
                         st.session_state.user = db.login_user(new_username, new_password)
-                        st.rerun() # สำเร็จทำการสมัคร + ล็อกอินเข้าใช้งานและปิดป๊อปอัปทันที
+                        st.rerun()
                     else:
-                        st.toast(f"❌ {msg}", icon="🚨") # ผิดไม่ปิดป๊อปอัป
+                        st.toast(f"❌ {msg}", icon="🚨")
             else:
                 st.toast("⚠️ กรุณากรอกข้อมูลให้ครบถ้วน", icon="⚠️")
 
@@ -356,7 +309,7 @@ with tab_calendar:
         events=events,
         options=calendar_options,
         callbacks=["dateClick", "select"],
-        key="waan_fullcalendar_v22"
+        key="waan_fullcalendar_v23"
     )
 
     st.divider()
@@ -377,23 +330,22 @@ with tab_calendar:
         st.info("🎉 วันนี้ไม่มีกิจกรรมค้างแล้ว! พักผ่อนได้เลย 🛋️")
     else:
         for h in due_today_not_done:
-            with st.container(border=True):
-                w_str = h.get("weekdays", "")
-                if w_str == "ONCE":
-                    freq_label = "นัดหมายครั้งเดียว"
-                elif w_str:
-                    day_names = [THAI_WEEKDAYS[int(w)][3:] for w in w_str.split(",") if w.isdigit()]
-                    freq_label = f"ทำทุกวัน{', '.join(day_names)}"
-                else:
-                    freq_label = f"ทำทุกๆ {h['interval_days']} วัน"
+            w_str = h.get("weekdays", "")
+            if w_str == "ONCE":
+                freq_label = "นัดหมายครั้งเดียว"
+            elif w_str:
+                day_names = [THAI_WEEKDAYS[int(w)][3:] for w in w_str.split(",") if w.isdigit()]
+                freq_label = f"ทำทุกวัน{', '.join(day_names)}"
+            else:
+                freq_label = f"ทำทุกๆ {h['interval_days']} วัน"
 
-                is_checked = st.checkbox(
-                    f"{h['emoji']} **{h['name']}** *({freq_label})*",
-                    key=f"chk_todo_{h['id']}"
-                )
-                if is_checked:
-                    db.add_log(user_id, h["id"], today, note=None, completed=True)
-                    st.rerun()
+            is_checked = st.checkbox(
+                f"{h['emoji']} **{h['name']}** *({freq_label})*",
+                key=f"chk_todo_{h['id']}"
+            )
+            if is_checked:
+                db.add_log(user_id, h["id"], today, note=None, completed=True)
+                st.rerun()
 
     clicked_date_str = None
     if cal_res:
