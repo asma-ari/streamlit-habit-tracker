@@ -1,9 +1,9 @@
 """
 app.py
 แอป Waan-Waan Habit Tracker
-- ใช้ FullCalendar สวยงามแบบภาพตัวอย่าง (มีปุ่ม month/week/list)
-- แก้ไขปัญหาคลิกวันที่แล้ววันเคลื่อน (Timezone Fix)
-- คลิกวันที่แล้วเด้ง Popup Dialog กลางจอให้พิมพ์บันทึก / ลบบันทึก
+- ใช้ FullCalendar สวยงาม
+- แก้ไขปัญหาวันที่เคลื่อน (กด 21 ได้ 20) ด้วยการดึง dateStr ตรงๆ
+- คลิกวันที่แล้วเด้ง Popup Dialog กลางจอเพื่อบันทึก/ลบ
 """
 
 from datetime import date, datetime, timedelta
@@ -108,7 +108,7 @@ def open_entry_dialog(selected_d: date):
 tab_calendar, tab_habits = st.tabs(["📅 ปฏิทิน", "🔁 กิจกรรมวนซ้ำ"])
 habits = db.get_habits()
 
-# ================= TAB 1: ปฏิทิน (FullCalendar แบบในรูป) =================
+# ================= TAB 1: ปฏิทิน =================
 with tab_calendar:
     events = []
     start_search = today - timedelta(days=90)
@@ -128,7 +128,7 @@ with tab_calendar:
                     "borderColor": "#ff9eb5" if d == today else "#6b4c8a"
                 })
 
-    # 2. ดึง "ข้อความบันทึก" มาแสดงสั้นๆ บนช่องปฏิทิน (แถบสีฟ้า)
+    # 2. ดึง "ข้อความบันทึก" มาแสดงสั้นๆ บนช่องปฏิทิน
     all_logs = db.get_all_logs(limit=500)
     for log in all_logs:
         if log["note"]:
@@ -142,7 +142,6 @@ with tab_calendar:
                 "borderColor": "#70a1ff"
             })
 
-    # คอนฟิกปฏิทินให้ปุ่มเหมือนภาพต้นฉบับเป๊ะๆ
     calendar_options = {
         "headerToolbar": {
             "left": "today prev,next",
@@ -151,22 +150,24 @@ with tab_calendar:
         },
         "initialView": "dayGridMonth",
         "selectable": True,
-        "timeZone": "local",
     }
 
     # แสดงปฏิทิน
     cal_res = calendar(events=events, options=calendar_options, callbacks=["dateClick"], key="waan_fullcalendar")
 
-    # เมื่อมีการคลิกวันที่ -> แปลงค่าวันที่ให้ตรงกับ Timezone เพื่อไม่ให้เคลื่อน
+    # ================= แก้จุดนี้: ดึงค่าวันที่โดยตรงแบบไม่แปลงผ่าน Timezone =================
     if cal_res and "dateClick" in cal_res:
-        raw_date_str = cal_res["dateClick"]["date"]
+        date_click_data = cal_res["dateClick"]
         
-        # ถ้าระบบส่งเวลามาเป็น String ให้ดึงเอาเฉพาะสัปดาห์/ปี/เดือน/วัน มาแปลงตรงๆ ป้องกัน Timezone เพี้ยน
-        date_part = raw_date_str.split("T")[0]
-        selected_date = date.fromisoformat(date_part)
+        # ลองดึงจาก dateStr ก่อน ถ้าไม่มีให้ใช้ date
+        raw_str = date_click_data.get("dateStr") or date_click_data.get("date") or ""
         
-        # เปิด Popup Dialog
-        open_entry_dialog(selected_date)
+        # ดึงเฉพาะตัวเลข YYYY-MM-DD (เช่น "2026-07-21")
+        clean_date_str = raw_str.split("T")[0]
+        
+        if clean_date_str:
+            selected_date = date.fromisoformat(clean_date_str)
+            open_entry_dialog(selected_date)
 
 
 # ================= TAB 2: กิจกรรมวนซ้ำ =================
