@@ -1,6 +1,6 @@
 """
 app.py
-แอป Daily Habit Tracker (ระบบ Login/Signup แบบปิด Dialog อัตโนมัติ + เช็ค Error กรอบแดง)
+แอป Daily Habit Tracker (แก้ปัญหากรอบแดง Autofill และจัดการพฤติกรรม Dialog สมบูรณ์แบบ)
 """
 
 from datetime import date, datetime, timedelta
@@ -21,13 +21,22 @@ if "user" not in st.session_state:
 if "editing_habit_id" not in st.session_state:
     st.session_state.editing_habit_id = None
 
-# ---------- Custom Styling ----------
+# ---------- Custom Styling (เคลียร์กรอบแดง Autofill ของเบราว์เซอร์) ----------
 st.markdown(
     """
     <style>
     .stApp { background: linear-gradient(180deg, #fff5f7 0%, #f3f0ff 100%); }
     
-    /* สไตล์ช่องกรอกข้อมูลทั่วไป (ปกติ) */
+    /* บังคับไม่ให้ช่องกรอกเปลี่ยนเป็นสีแดงเวลาเบราว์เซอร์ Autofill หรือมี Error */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover, 
+    input:-webkit-autofill:focus, 
+    input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
+        -webkit-text-fill-color: #343a40 !important;
+        border-color: #ced4da !important;
+    }
+
     .stTextInput input, .stTextArea textarea, div[data-baseweb="select"] > div {
         border-color: #ced4da !important;
         box-shadow: none !important;
@@ -59,29 +68,11 @@ st.markdown(
 )
 
 # -------------------------------------------------------------
-# 🪟 POPUP DIALOGS สำหรับ Login & Sign Up (พร้อมเช็คกรอบแดงเมื่อผิดพลาด)
+# 🪟 POPUP DIALOGS สำหรับ Login & Sign Up (ไม่บังคับค้าง ปิดกากบาทได้ทันที)
 # -------------------------------------------------------------
 @st.dialog("🔑 เข้าสู่ระบบ")
 def open_login_dialog():
     with st.form("login_form"):
-        # ใช้ session_state เช็คสถานะความผิดพลาดเพื่อแสดงกรอบแดง
-        is_error = st.session_state.get("login_error", False)
-        
-        # ถ้ารหัสผิด ให้ใส่ CSS เฉพาะกิจให้ช่องกลายเป็นสีแดง
-        if is_error:
-            st.markdown(
-                """
-                <style>
-                div[data-testid="stForm"] input {
-                    border-color: #ff6b6b !important;
-                    background-color: #fff5f5 !important;
-                }
-                </style>
-                """,
-                unsafe_allow_html=True
-            )
-            st.error("❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง")
-
         username = st.text_input("ชื่อผู้ใช้ (Username)").strip()
         password = st.text_input("รหัสผ่าน (Password)", type="password").strip()
         btn_login = st.form_submit_button("เข้าสู่ระบบ 🚀", use_container_width=True)
@@ -90,39 +81,18 @@ def open_login_dialog():
             if username and password:
                 user = db.login_user(username, password)
                 if user:
-                    st.session_state.login_error = False
                     st.session_state.user = user
-                    st.rerun()  # ทำสำเร็จ หน้าต่างจะปิดหายไปเองแล้วเข้าสู่แอป
-                else:
-                    st.session_state.login_error = True
                     st.rerun()
+                else:
+                    st.error("❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง")
             else:
-                st.session_state.login_error = True
-                st.warning("กรุณากรอกข้อมูลให้ครบถ้วน")
+                st.warning("⚠️ กรุณากรอกข้อมูลให้ครบถ้วน")
 
 @st.dialog("📝 สมัครสมาชิก")
 def open_signup_dialog():
     st.caption("🔒 กำหนดเพียงชื่อผู้ใช้และรหัสผ่าน เพื่อแยกพื้นที่บันทึกส่วนตัวของคุณเท่านั้น")
     
     with st.form("signup_form"):
-        signup_err_type = st.session_state.get("signup_err_type", "")
-        
-        if signup_err_type == "duplicate":
-            st.markdown(
-                """
-                <style>
-                div[data-testid="stForm"] input {
-                    border-color: #ff6b6b !important;
-                    background-color: #fff5f5 !important;
-                }
-                </style>
-                """,
-                unsafe_allow_html=True
-            )
-            st.error("❌ ชื่อผู้ใช้นี้ถูกใช้งานแล้ว! กรุณาเปลี่ยนชื่อใหม่")
-        elif signup_err_type == "mismatch":
-            st.error("❌ รหัสผ่านทั้งสองช่องไม่ตรงกัน")
-
         new_username = st.text_input("ตั้งชื่อผู้ใช้ (Username)").strip()
         new_password = st.text_input("ตั้งรหัสผ่าน (Password)", type="password").strip()
         confirm_password = st.text_input("ยืนยันรหัสผ่านอีกครั้ง", type="password").strip()
@@ -131,19 +101,15 @@ def open_signup_dialog():
         if btn_signup:
             if new_username and new_password:
                 if new_password != confirm_password:
-                    st.session_state.signup_err_type = "mismatch"
-                    st.rerun()
+                    st.error("❌ รหัสผ่านทั้งสองช่องไม่ตรงกัน")
                 else:
                     success, msg = db.register_user(new_username, new_password)
                     if success:
-                        st.session_state.signup_err_type = ""
-                        st.success("🎉 สมัครสมาชิกสำเร็จ! หน้าต่างจะปิดลง ให้กดปุ่มเข้าสู่ระบบได้เลย")
-                        st.rerun()
+                        st.success("🎉 สมัครสมาชิกสำเร็จ! สามารถกดกากบาทปิด แล้วกดปุ่มเข้าสู่ระบบได้เลย")
                     else:
-                        st.session_state.signup_err_type = "duplicate"
-                        st.rerun()
+                        st.error(f"❌ {msg}")
             else:
-                st.warning("กรุณากรอกข้อมูลให้ครบถ้วน")
+                st.warning("⚠️ กรุณากรอกข้อมูลให้ครบถ้วน")
 
 
 # -------------------------------------------------------------
@@ -174,12 +140,10 @@ if not st.session_state.user:
     col1, col2 = st.columns(2)
     with col1:
         if st.button("🔑 เข้าสู่ระบบ", use_container_width=True, type="primary"):
-            st.session_state.login_error = False
             open_login_dialog()
             
     with col2:
         if st.button("📝 สมัครสมาชิก", use_container_width=True):
-            st.session_state.signup_err_type = ""
             open_signup_dialog()
             
     st.stop()
@@ -202,7 +166,7 @@ with col_logout:
 
 today = date.today()
 
-# 🪟 POPUP DIALOG 1: บันทึกประจำวัน (กดบันทึกแล้วปิดอัตโนมัติ)
+# 🪟 POPUP DIALOG 1: บันทึกประจำวัน
 @st.dialog("📝 บันทึกกิจกรรมประจำวัน")
 def open_entry_dialog(selected_d: date):
     st.markdown(f"### 📅 วันที่: **{thai_weekday(selected_d)} {selected_d.strftime('%d/%m/%Y')}**")
@@ -236,7 +200,7 @@ def open_entry_dialog(selected_d: date):
     if st.button("💾 บันทึกเรื่องราว", use_container_width=True, key=f"save_btn_{selected_d}"):
         if note_input.strip():
             db.add_log(user_id, habit_id=None, log_date=selected_d, note=note_input.strip(), completed=False)
-            st.rerun() # พิมพ์บันทึกเสร็จ หน้าต่างจะปิดหายไปทันที
+            st.rerun()
         else:
             st.warning("กรุณาพิมพ์ข้อความก่อนบันทึกนะ")
 
@@ -262,7 +226,7 @@ def open_entry_dialog(selected_d: date):
                 st.rerun()
 
 
-# 🪟 POPUP DIALOG 2: แก้ไขกิจกรรม (กดบันทึกแล้วปิดอัตโนมัติ)
+# 🪟 POPUP DIALOG 2: แก้ไขกิจกรรม
 @st.dialog("✏️ แก้ไขกิจกรรม")
 def open_edit_habit_dialog(habit):
     st.markdown(f"### แก้ไขกิจกรรม: **{habit['emoji']} {habit['name']}**")
@@ -304,7 +268,7 @@ def open_edit_habit_dialog(habit):
                     db.update_habit(habit["id"], user_id, new_name.strip(), new_emoji or "✨", int(new_interval), new_start, "")
                 
                 st.session_state.editing_habit_id = None
-                st.rerun() # แก้ไขเสร็จ หน้าต่าง Dialog จะปิดหายไปทันที
+                st.rerun()
             else:
                 st.warning("กรุณาใส่ชื่อกิจกรรมด้วยนะ")
 
@@ -389,7 +353,7 @@ with tab_calendar:
         events=events,
         options=calendar_options,
         callbacks=["dateClick", "select"],
-        key="waan_fullcalendar_v19"
+        key="waan_fullcalendar_v20"
     )
 
     st.divider()
@@ -527,7 +491,6 @@ with tab_habits:
                     st.session_state.editing_habit_id = h["id"]
                     st.rerun()
             with btn2:
-                if st.button("🗑️ลบ", key=f"del_h_{h['id']}", use_container_width=True):
-                    db.delete_log(log["id"] if 'log' in locals() else 0, user_id) # แก้ไขให้ลบ habit ได้ปลอดภัย
+                if st.button("🗑️ ลบ", key=f"del_h_{h['id']}", use_container_width=True):
                     db.delete_habit(h["id"], user_id)
                     st.rerun()
