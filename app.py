@@ -1,6 +1,6 @@
 """
 app.py
-แอป Daily Habit Tracker (ป๊อปอัพสไตล์เดิม เพิ่มเติมคือปิดเองอัตโนมัติเมื่อบันทึก)
+แอป Daily Habit Tracker (ระบบ Multi-user / Login แบบ Pop-up Dialog)
 """
 
 from datetime import date, datetime, timedelta
@@ -18,12 +18,35 @@ db.init_db()
 if "user" not in st.session_state:
     st.session_state.user = None
 
-if "selected_date" not in st.session_state:
-    st.session_state.selected_date = None
+if "editing_habit_id" not in st.session_state:
+    st.session_state.editing_habit_id = None
 
-if "editing_habit" not in st.session_state:
-    st.session_state.editing_habit = None
+# ---------- Custom Styling ----------
+st.markdown(
+    """
+    <style>
+    .stApp { background: linear-gradient(180deg, #fff5f7 0%, #f3f0ff 100%); }
+    
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background-color: #f1f3f5 !important;
+        border: 1.5px solid #e9ecef !important;
+        border-radius: 16px !important;
+        padding: 10px 18px !important;
+        margin-bottom: 12px !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+    }
+    
+    div[data-testid="stVerticalBlockBorderWrapper"] .stCheckbox label p {
+        font-size: 1.15rem !important;
+        font-weight: 600 !important;
+        color: #343a40 !important;
+    }
 
+    h1, h2, h3 { color: #6b4c8a; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 # -------------------------------------------------------------
 # 🪟 POPUP DIALOGS สำหรับ Login & Sign Up
@@ -40,16 +63,16 @@ def open_login_dialog():
                 user = db.login_user(username, password)
                 if user:
                     st.session_state.user = user
+                    st.success(f"ยินดีต้อนรับกลับมา {username}! 🎉")
                     st.rerun()
                 else:
-                    st.toast("❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง!", icon="🚨")
+                    st.error("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง")
             else:
-                st.toast("⚠️ กรุณากรอกข้อมูลให้ครบถ้วน", icon="⚠️")
+                st.warning("กรุณากรอกข้อมูลให้ครบถ้วน")
 
 @st.dialog("📝 สมัครสมาชิก")
 def open_signup_dialog():
     st.caption("🔒 กำหนดเพียงชื่อผู้ใช้และรหัสผ่าน เพื่อแยกพื้นที่บันทึกส่วนตัวของคุณเท่านั้น")
-    
     with st.form("signup_form"):
         new_username = st.text_input("ตั้งชื่อผู้ใช้ (Username)").strip()
         new_password = st.text_input("ตั้งรหัสผ่าน (Password)", type="password").strip()
@@ -59,83 +82,15 @@ def open_signup_dialog():
         if btn_signup:
             if new_username and new_password:
                 if new_password != confirm_password:
-                    st.toast("❌ รหัสผ่านทั้งสองช่องไม่ตรงกัน!", icon="🚨")
+                    st.error("รหัสผ่านทั้งสองช่องไม่ตรงกัน")
                 else:
                     success, msg = db.register_user(new_username, new_password)
                     if success:
-                        st.toast("🎉 สมัครสมาชิกสำเร็จ!", icon="✨")
-                        st.session_state.user = db.login_user(new_username, new_password)
-                        st.rerun()
+                        st.success("สมัครสมาชิกสำเร็จแล้ว! สามารถกดเข้าสู่ระบบได้เลย")
                     else:
-                        st.toast(f"❌ {msg}", icon="🚨")
+                        st.error(msg)
             else:
-                st.toast("⚠️ กรุณากรอกข้อมูลให้ครบถ้วน", icon="⚠️")
-
-
-# -------------------------------------------------------------
-# 🪟 POPUP DIALOG: บันทึกกิจกรรมประจำวัน (ปิดอัตโนมัติเมื่อกดบันทึก)
-# -------------------------------------------------------------
-@st.dialog("📝 บันทึกกิจกรรมประจำวัน")
-def open_entry_dialog(selected_d: date):
-    st.markdown(f"### 📅 วันที่: **{thai_weekday(selected_d)} {selected_d.strftime('%d/%m/%Y')}**")
-    
-    habits = db.get_habits(user_id)
-    due_on_selected = [
-        h for h in habits 
-        if is_due(date.fromisoformat(h["start_date"]), h["interval_days"], selected_d, h.get("weekdays", ""))
-    ]
-
-    if due_on_selected:
-        st.markdown("✨ **กิจกรรม/นัดหมายในวันนี้:**")
-        for h in due_on_selected:
-            done = db.is_done_today(h["id"], user_id, selected_d)
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                status_text = "✅ ทำแล้ว" if done else "⏳ ยังไม่ได้ทำ"
-                st.markdown(f"- **{h['emoji']} {h['name']}** ({status_text})")
-            with col2:
-                if not done:
-                    if st.button("ทำแล้ว ✔️", key=f"dlg_done_{h['id']}_{selected_d}"):
-                        db.add_log(user_id, h["id"], selected_d, note=None, completed=True)
-                        st.session_state.selected_date = None
-                        st.rerun()
-                else:
-                    st.caption("เรียบร้อย")
-        st.divider()
-
-    with st.form(key=f"diary_form_{selected_d}", clear_on_submit=True):
-        st.markdown("✍️ **พิมพ์เรื่องราว/ไดอารี่วันนี้:**")
-        note_input = st.text_area("วันนี้มีอะไรเกิดขึ้นบ้าง เล่าให้ฟังหน่อย...", height=100)
-        
-        save_diary = st.form_submit_button("💾 บันทึกเรื่องราว", use_container_width=True)
-        if save_diary:
-            if note_input.strip():
-                db.add_log(user_id, habit_id=None, log_date=selected_d, note=note_input.strip(), completed=False)
-                st.session_state.selected_date = None  # ปิดป๊อปอัพทันทีหลังบันทึก
-                st.rerun()
-            else:
-                st.warning("กรุณาพิมพ์ข้อความก่อนบันทึกนะ")
-
-    st.divider()
-    st.markdown("📖 **บันทึกย้อนหลังของวันนี้:**")
-    logs_on_selected = db.get_logs_for_date(user_id, selected_d)
-    if not logs_on_selected:
-        st.caption("ยังไม่มีบันทึกข้อความในวันนี้")
-    for log in logs_on_selected:
-        c_log1, c_log2 = st.columns([5, 1])
-        with c_log1:
-            if log["note"]:
-                st.markdown(f"🗒️ {log['note']}")
-            elif log["completed"]:
-                h_name = "กิจกรรม"
-                for h in habits:
-                    if h["id"] == log["habit_id"]:
-                        h_name = f"{h['emoji']} {h['name']}"
-                st.markdown(f"✅ ทำสำเร็จ: {h_name}")
-        with c_log2:
-            if st.button("🗑️", key=f"del_log_btn_{log['id']}"):
-                db.delete_log(log["id"], user_id)
-                st.rerun()
+                st.warning("กรุณากรอกข้อมูลให้ครบถ้วน")
 
 
 # -------------------------------------------------------------
@@ -148,6 +103,7 @@ if not st.session_state.user:
     
     st.divider()
     
+    # การ์ดอธิบาย
     st.markdown(
         """
         ### 👋 ยินดีต้อนรับสู่ Daily Habit Tracker!
@@ -172,7 +128,7 @@ if not st.session_state.user:
         if st.button("📝 สมัครสมาชิก", use_container_width=True):
             open_signup_dialog()
             
-    st.stop()
+    st.stop()  # หยุดการทำงานไว้แค่นี้หากยังไม่ได้ล็อกอิน
 
 # -------------------------------------------------------------
 # 🏠 หน้าจอหลักของแอป (แสดงเมื่อ Login แล้ว)
@@ -180,6 +136,7 @@ if not st.session_state.user:
 user_id = st.session_state.user["id"]
 user_name = st.session_state.user["username"]
 
+# แถบแสดงสถานะผู้ใช้ด้านบน
 col_header, col_logout = st.columns([3, 1])
 with col_header:
     st.title("🌸 Daily Habit Tracker")
@@ -192,9 +149,123 @@ with col_logout:
 
 today = date.today()
 
+# 🪟 POPUP DIALOG 1: บันทึกประจำวัน
+@st.dialog("📝 บันทึกกิจกรรมประจำวัน")
+def open_entry_dialog(selected_d: date):
+    st.markdown(f"### 📅 วันที่: **{thai_weekday(selected_d)} {selected_d.strftime('%d/%m/%Y')}**")
+    
+    habits = db.get_habits(user_id)
+    due_on_selected = [
+        h for h in habits 
+        if is_due(date.fromisoformat(h["start_date"]), h["interval_days"], selected_d, h.get("weekdays", ""))
+    ]
+
+    if due_on_selected:
+        st.markdown("✨ **กิจกรรม/นัดหมายในวันนี้:**")
+        for h in due_on_selected:
+            done = db.is_done_today(h["id"], user_id, selected_d)
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                status_text = "✅ ทำแล้ว" if done else "⏳ ยังไม่ได้ทำ"
+                st.markdown(f"- **{h['emoji']} {h['name']}** ({status_text})")
+            with col2:
+                if not done:
+                    if st.button("ทำแล้ว ✔️", key=f"dlg_done_{h['id']}_{selected_d}"):
+                        db.add_log(user_id, h["id"], selected_d, note=None, completed=True)
+                        st.rerun()
+                else:
+                    st.caption("เรียบร้อย")
+        st.divider()
+
+    st.markdown("✍️ **พิมพ์เรื่องราว/ไดอารี่วันนี้:**")
+    note_input = st.text_area("วันนี้มีอะไรเกิดขึ้นบ้าง เล่าให้ฟังหน่อย...", height=100, key=f"note_area_{selected_d}")
+    
+    if st.button("💾 บันทึกเรื่องราว", use_container_width=True, key=f"save_btn_{selected_d}"):
+        if note_input.strip():
+            db.add_log(user_id, habit_id=None, log_date=selected_d, note=note_input.strip(), completed=False)
+            st.success("บันทึกเรียบร้อย!")
+            st.rerun()
+        else:
+            st.warning("กรุณาพิมพ์ข้อความก่อนบันทึกนะ")
+
+    st.divider()
+    st.markdown("📖 **บันทึกย้อนหลังของวันนี้:**")
+    logs_on_selected = db.get_logs_for_date(user_id, selected_d)
+    if not logs_on_selected:
+        st.caption("ยังไม่มีบันทึกข้อความในวันนี้")
+    for log in logs_on_selected:
+        c_log1, c_log2 = st.columns([5, 1])
+        with c_log1:
+            if log["note"]:
+                st.markdown(f"🗒️ {log['note']}")
+            elif log["completed"]:
+                h_name = "กิจกรรม"
+                for h in habits:
+                    if h["id"] == log["habit_id"]:
+                        h_name = f"{h['emoji']} {h['name']}"
+                st.markdown(f"✅ ทำสำเร็จ: {h_name}")
+        with c_log2:
+            if st.button("🗑️", key=f"del_log_btn_{log['id']}"):
+                db.delete_log(log["id"], user_id)
+                st.rerun()
+
+
+# 🪟 POPUP DIALOG 2: แก้ไขกิจกรรม
+@st.dialog("✏️ แก้ไขกิจกรรม")
+def open_edit_habit_dialog(habit):
+    st.markdown(f"### แก้ไขกิจกรรม: **{habit['emoji']} {habit['name']}**")
+    
+    with st.form(key=f"edit_habit_form_{habit['id']}"):
+        c1, c2 = st.columns([1, 3])
+        new_emoji = c1.text_input("อีโมจิ", value=habit["emoji"], max_chars=2)
+        new_name = c2.text_input("ชื่อกิจกรรม", value=habit["name"])
+        
+        weekdays_str = habit.get("weekdays", "")
+        if weekdays_str == "ONCE":
+            current_start = date.fromisoformat(habit["start_date"])
+            new_start = st.date_input("วันที่ทำกิจกรรม:", value=current_start)
+            new_interval = 0
+            new_w_str = "ONCE"
+        elif weekdays_str:
+            curr_days = [THAI_WEEKDAYS[int(w)] for w in weekdays_str.split(",") if w.isdigit()]
+            new_selected_weekdays = st.multiselect("เลือกวันในสัปดาห์:", THAI_WEEKDAYS, default=curr_days)
+            new_interval = 1
+            new_start = today
+        else:
+            c3, c4 = st.columns(2)
+            new_interval = c3.number_input("ทำทุกกี่วัน", min_value=1, max_value=365, value=int(habit["interval_days"]))
+            current_start = date.fromisoformat(habit["start_date"])
+            new_start = c4.date_input("เริ่มนับจากวันที่", value=current_start)
+            new_w_str = ""
+        
+        submit_edit = st.form_submit_button("💾 บันทึกการแก้ไข", use_container_width=True)
+        if submit_edit:
+            if new_name.strip():
+                if weekdays_str == "ONCE":
+                    db.update_habit(habit["id"], user_id, new_name.strip(), new_emoji or "📝", 0, new_start, "ONCE")
+                elif weekdays_str:
+                    weekday_map = {name: idx for idx, name in enumerate(THAI_WEEKDAYS)}
+                    w_indices = sorted([str(weekday_map[d]) for d in new_selected_weekdays])
+                    new_w_str = ",".join(w_indices)
+                    db.update_habit(habit["id"], user_id, new_name.strip(), new_emoji or "✨", 1, today, new_w_str)
+                else:
+                    db.update_habit(habit["id"], user_id, new_name.strip(), new_emoji or "✨", int(new_interval), new_start, "")
+                
+                st.session_state.editing_habit_id = None
+                st.success("แก้ไขกิจกรรมเรียบร้อยแล้ว!")
+                st.rerun()
+            else:
+                st.warning("กรุณาใส่ชื่อกิจกรรมด้วยนะ")
+
+
 # 📌 MAIN TABS
 tab_calendar, tab_habits = st.tabs(["📅 ปฏิทิน", "🔁 ตั้งค่ากิจกรรม"])
 habits = db.get_habits(user_id)
+
+if st.session_state.editing_habit_id:
+    target_h = next((h for h in habits if h["id"] == st.session_state.editing_habit_id), None)
+    if target_h:
+        open_edit_habit_dialog(target_h)
 
 # ================= TAB 1: ปฏิทิน =================
 with tab_calendar:
@@ -267,7 +338,7 @@ with tab_calendar:
         events=events,
         options=calendar_options,
         callbacks=["dateClick", "select"],
-        key="waan_fullcalendar_v29"
+        key="waan_fullcalendar_v17"
     )
 
     st.divider()
@@ -288,22 +359,23 @@ with tab_calendar:
         st.info("🎉 วันนี้ไม่มีกิจกรรมค้างแล้ว! พักผ่อนได้เลย 🛋️")
     else:
         for h in due_today_not_done:
-            w_str = h.get("weekdays", "")
-            if w_str == "ONCE":
-                freq_label = "นัดหมายครั้งเดียว"
-            elif w_str:
-                day_names = [THAI_WEEKDAYS[int(w)][3:] for w in w_str.split(",") if w.isdigit()]
-                freq_label = f"ทำทุกวัน{', '.join(day_names)}"
-            else:
-                freq_label = f"ทำทุกๆ {h['interval_days']} วัน"
+            with st.container(border=True):
+                w_str = h.get("weekdays", "")
+                if w_str == "ONCE":
+                    freq_label = "นัดหมายครั้งเดียว"
+                elif w_str:
+                    day_names = [THAI_WEEKDAYS[int(w)][3:] for w in w_str.split(",") if w.isdigit()]
+                    freq_label = f"ทำทุกวัน{', '.join(day_names)}"
+                else:
+                    freq_label = f"ทำทุกๆ {h['interval_days']} วัน"
 
-            is_checked = st.checkbox(
-                f"{h['emoji']} **{h['name']}** *({freq_label})*",
-                key=f"chk_todo_{h['id']}"
-            )
-            if is_checked:
-                db.add_log(user_id, h["id"], today, note=None, completed=True)
-                st.rerun()
+                is_checked = st.checkbox(
+                    f"{h['emoji']} **{h['name']}** *({freq_label})*",
+                    key=f"chk_todo_{h['id']}"
+                )
+                if is_checked:
+                    db.add_log(user_id, h["id"], today, note=None, completed=True)
+                    st.rerun()
 
     clicked_date_str = None
     if cal_res:
@@ -317,71 +389,16 @@ with tab_calendar:
     if clicked_date_str:
         clean_str = str(clicked_date_str).split("T")[0].split(" ")[0]
         try:
-            st.session_state.selected_date = date.fromisoformat(clean_str)
+            selected_date = date.fromisoformat(clean_str)
+            open_entry_dialog(selected_date)
         except ValueError:
             pass
-
-    # เปิดป๊อปอัพไดอารี่เมื่อคลิกวันที่
-    if st.session_state.selected_date:
-        open_entry_dialog(st.session_state.selected_date)
 
 
 # ================= TAB 2: ตั้งค่ากิจกรรม =================
 with tab_habits:
     st.subheader("🔁 ตั้งค่ากิจกรรม / นัดหมายสำคัญ")
     
-    # ส่วนแก้ไขกิจกรรม
-    if st.session_state.editing_habit:
-        h_edit = st.session_state.editing_habit
-        with st.container(border=True):
-            st.markdown(f"### ✏️ แก้ไขกิจกรรม: **{h_edit['emoji']} {h_edit['name']}**")
-            with st.form(key=f"edit_habit_form_{h_edit['id']}"):
-                c1, c2 = st.columns([1, 3])
-                new_emoji = c1.text_input("อีโมจิ", value=h_edit["emoji"], max_chars=2)
-                new_name = c2.text_input("ชื่อกิจกรรม", value=h_edit["name"])
-                
-                weekdays_str = h_edit.get("weekdays", "")
-                if weekdays_str == "ONCE":
-                    current_start = date.fromisoformat(h_edit["start_date"])
-                    new_start = st.date_input("วันที่ทำกิจกรรม:", value=current_start)
-                    new_w_str = "ONCE"
-                elif weekdays_str:
-                    curr_days = [THAI_WEEKDAYS[int(w)] for w in weekdays_str.split(",") if w.isdigit()]
-                    new_selected_weekdays = st.multiselect("เลือกวันในสัปดาห์:", THAI_WEEKDAYS, default=curr_days)
-                    new_start = today
-                else:
-                    c3, c4 = st.columns(2)
-                    new_interval = c3.number_input("ทำทุกกี่วัน", min_value=1, max_value=365, value=int(h_edit["interval_days"]))
-                    current_start = date.fromisoformat(h_edit["start_date"])
-                    new_start = c4.date_input("เริ่มนับจากวันที่", value=current_start)
-                    new_w_str = ""
-                
-                c_save, c_cancel = st.columns(2)
-                submit_edit = c_save.form_submit_button("💾 บันทึกการแก้ไข", use_container_width=True)
-                cancel_edit = c_cancel.form_submit_button("❌ ยกเลิก", use_container_width=True)
-                
-                if submit_edit:
-                    if new_name.strip():
-                        if weekdays_str == "ONCE":
-                            db.update_habit(h_edit["id"], user_id, new_name.strip(), new_emoji or "📝", 0, new_start, "ONCE")
-                        elif weekdays_str:
-                            weekday_map = {name: idx for idx, name in enumerate(THAI_WEEKDAYS)}
-                            w_indices = sorted([str(weekday_map[d]) for d in new_selected_weekdays])
-                            new_w_str = ",".join(w_indices)
-                            db.update_habit(h_edit["id"], user_id, new_name.strip(), new_emoji or "✨", 1, today, new_w_str)
-                        else:
-                            db.update_habit(h_edit["id"], user_id, new_name.strip(), new_emoji or "✨", int(new_interval), new_start, "")
-                        
-                        st.session_state.editing_habit = None
-                        st.rerun()
-                    else:
-                        st.warning("กรุณาใส่ชื่อกิจกรรมด้วยนะ")
-                
-                if cancel_edit:
-                    st.session_state.editing_habit = None
-                    st.rerun()
-        st.divider()
-
     repeat_type = st.radio(
         "รูปแบบกิจกรรม:",
         ["📌 ทำครั้งเดียว/นัดหมายล่วงหน้า (เช่น สอบ, ไปพบหมอ)", "🗓️ ทำตามวันในสัปดาห์ (เช่น ทุกวันพุธ, ศุกร์)", "🔄 ทำทุกๆ N วัน (เช่น ทุกๆ 2 วัน)"],
@@ -410,6 +427,7 @@ with tab_habits:
                 st.warning("กรุณาใส่ชื่อกิจกรรมด้วยนะ")
             elif "ทำครั้งเดียว" in repeat_type:
                 db.add_habit(user_id, name.strip(), emoji or "📌", 0, event_date, "ONCE")
+                st.success(f"เพิ่มนัดหมาย '{name}' ในวันที่ {event_date.strftime('%d/%m/%Y')} เรียบร้อยแล้ว!")
                 st.rerun()
             elif "วันในสัปดาห์" in repeat_type:
                 if not selected_weekdays:
@@ -419,9 +437,11 @@ with tab_habits:
                     w_indices = sorted([str(weekday_map[d]) for d in selected_weekdays])
                     w_str = ",".join(w_indices)
                     db.add_habit(user_id, name.strip(), emoji or "✨", 1, today, w_str)
+                    st.success(f"เพิ่มกิจกรรม '{name}' ({', '.join(selected_weekdays)}) เรียบร้อยแล้ว!")
                     st.rerun()
             else:
                 db.add_habit(user_id, name.strip(), emoji or "✨", int(interval_days), start_date_input, "")
+                st.success(f"เพิ่ม '{name}' เรียบร้อยแล้ว!")
                 st.rerun()
 
     st.divider()
@@ -456,7 +476,7 @@ with tab_habits:
             btn1, btn2 = st.columns(2)
             with btn1:
                 if st.button("✏️ แก้ไข", key=f"edit_h_{h['id']}", use_container_width=True):
-                    st.session_state.editing_habit = h
+                    st.session_state.editing_habit_id = h["id"]
                     st.rerun()
             with btn2:
                 if st.button("🗑️ ลบ", key=f"del_h_{h['id']}", use_container_width=True):
