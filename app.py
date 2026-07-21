@@ -2,7 +2,7 @@
 app.py
 แอป Daily Habit Tracker
 - ปฏิทิน FullCalendar
-- ใต้ปฏิทินมีแถบสี่เหลี่ยมผืนผ้าสีชมพูอ่อน มีข้อความกิจกรรมและช่องติ๊กถูกภายในแถบ
+- ใต้ปฏิทินมีแถบสี่เหลี่ยมมนสไตล์น่ารัก เหมือนกล่อง st.info พร้อม Checkbox ติ๊กทำกิจกรรม
 - ปุ่มแก้ไขและลบในกิจกรรมวนซ้ำอยู่ชิดติดกัน
 """
 
@@ -23,21 +23,21 @@ st.markdown(
     <style>
     .stApp { background: linear-gradient(180deg, #fff5f7 0%, #f3f0ff 100%); }
     
-    /* สไตล์แถบสี่เหลี่ยมผืนผ้าสีชมพูอ่อนพาสเทล */
-    .pink-rect-card {
-        background-color: #ffeef2;
-        border: 1.5px solid #ffb6c1;
-        border-radius: 12px;
-        padding: 12px 18px;
+    /* สไตล์แถบสี่เหลี่ยมมน สีกรอบชมพูพาสเทลสบายตา เหมือนกล่อง st.info ในภาพ */
+    .pink-banner-card {
+        background-color: #eef2ff; /* แถบสีฟ้า-ม่วงอ่อนพาสเทลนุ่มๆ แบบในภาพตัวอย่าง */
+        border-radius: 14px;
+        padding: 14px 20px;
         margin-bottom: 12px;
-        box-shadow: 0 2px 8px rgba(255, 182, 193, 0.2);
+        display: flex;
+        align-items: center;
     }
     
-    /* จัดขนาดตัวอักษรและ Checkbox ให้พอดีสวยงามในแถบ */
-    .pink-rect-card .stCheckbox label p {
+    /* ขยายขนาด Checkbox และข้อความให้อ่านง่ายพอดีแถบ */
+    .pink-banner-card .stCheckbox label p {
         font-size: 1.1rem !important;
         font-weight: 600 !important;
-        color: #4a2e35 !important;
+        color: #2b2b52 !important;
     }
 
     h1, h2, h3 { color: #6b4c8a; }
@@ -207,11 +207,11 @@ with tab_calendar:
         events=events,
         options=calendar_options,
         callbacks=["dateClick", "select"],
-        key="waan_fullcalendar_v8"
+        key="waan_fullcalendar_v9"
     )
 
     # ---------------------------------------------------------
-    # 📌 แถบสี่เหลี่ยมผืนผ้าสีชมพูอ่อน พร้อมช่องติ๊กถูกในแถบ
+    # 📌 แถบกิจกรรมรูปทรงและสไตล์สวยงามแบบในภาพตัวอย่าง
     # ---------------------------------------------------------
     st.divider()
     st.subheader(f"📌 กิจกรรมที่ต้องทำวันนี้ ({thai_weekday(today)}ที่ {today.strftime('%d/%m/%Y')})")
@@ -226,8 +226,8 @@ with tab_calendar:
         st.info("🎉 วันนี้ไม่มีกิจกรรมค้างแล้ว! พักผ่อนได้เลย 🛋️")
     else:
         for h in due_today_not_done:
-            # ครอบด้วยแถบสี่เหลี่ยมผืนผ้าสีชมพูอ่อน
-            st.markdown("<div class='pink-rect-card'>", unsafe_allow_html=True)
+            # ครอบด้วยแถบสไตล์สี่เหลี่ยมมน พาสเทล ละมุนตาเหมือนรูปตัวอย่าง
+            st.markdown("<div class='pink-banner-card'>", unsafe_allow_html=True)
             is_checked = st.checkbox(
                 f"{h['emoji']} **{h['name']}** *(ทำทุกๆ {h['interval_days']} วัน)*",
                 key=f"chk_todo_{h['id']}"
